@@ -1,0 +1,26 @@
+name: Gerar aplicativo Windows
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r app/requirements.txt pyinstaller
+      - name: Gerar EXE
+        run: python -m PyInstaller --noconfirm --clean --onedir --name CorridaTikTok --collect-all TikTokLive --add-data "app/jogo.html;." --add-data "app/controle.html;." app/servidor.py
+      - name: Compactar
+        shell: pwsh
+        run: Compress-Archive -Path dist/CorridaTikTok/* -DestinationPath CorridaTikTok-Windows.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: CorridaTikTok-Windows
+          path: CorridaTikTok-Windows.zip
