@@ -1,7 +1,7 @@
-import json, time, threading
+import json, time, threading, sys, traceback, webbrowser, socket
 from pathlib import Path
 from flask import Flask, jsonify, request, send_from_directory
-ROOT=Path(__file__).resolve().parent
+ROOT=Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
 CFG=Path.home()/".corrida_tiktok_vgzeratv.json"
 config={"usuario":"@vgzeratv","presente_lula":"Rose","presente_bolsonaro":"Finger Heart","pontos_por_presente":5,"meta":100}
 if CFG.exists():
@@ -87,7 +87,40 @@ def live_worker():
         except Exception as e:
             with lock:state["status"]="Offline/erro: "+str(e)[:120]
         time.sleep(12)
-if __name__=="__main__":
+def main():
+    print("="*55, flush=True)
+    print("CORRIDA TIKTOK VGZERATV - VERSAO DE DIAGNOSTICO", flush=True)
+    print("Arquivos do jogo: " + str(ROOT), flush=True)
+    for fname in ("jogo.html","controle.html"):
+        if not (ROOT/fname).is_file():
+            raise FileNotFoundError("Arquivo obrigatorio ausente: " + str(ROOT/fname))
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as check:
+        if check.connect_ex(("127.0.0.1",8765)) == 0:
+            print("ATENCAO: porta 8765 ja em uso. Feche a instancia anterior.", flush=True)
+            webbrowser.open("http://127.0.0.1:8765/controle")
+            return
     threading.Thread(target=live_worker,daemon=True).start()
-    print("Painel: http://127.0.0.1:8765/controle")
-    app.run(host="127.0.0.1",port=8765,debug=False,threaded=True)
+    def open_panel():
+        for _ in range(30):
+            time.sleep(0.5)
+            try:
+                with socket.create_connection(("127.0.0.1",8765),timeout=1):
+                    webbrowser.open("http://127.0.0.1:8765/controle")
+                    return
+            except OSError: pass
+        print("ERRO: servidor nao respondeu em 15 segundos",flush=True)
+    threading.Thread(target=open_panel,daemon=True).start()
+    print("Painel: http://127.0.0.1:8765/controle", flush=True)
+    print("Deixe esta janela aberta durante a live.", flush=True)
+    app.run(host="127.0.0.1",port=8765,debug=False,threaded=True,use_reloader=False)
+if __name__=="__main__":
+    try: main()
+    except Exception:
+        msg=traceback.format_exc()
+        print("ERRO AO INICIAR:\\n"+msg,flush=True)
+        log=Path.home()/"Desktop"/"erro_corrida_tiktok.txt"
+        try: log.write_text(msg,encoding="utf-8")
+        except Exception: log=Path.home()/"erro_corrida_tiktok.txt"; log.write_text(msg,encoding="utf-8")
+        print("Relatorio salvo em: "+str(log),flush=True)
+        input("Pressione ENTER para encerrar...")
+
