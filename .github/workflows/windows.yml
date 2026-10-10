@@ -1,5 +1,10 @@
 name: Gerar aplicativo Windows
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'app/**'
+      - '.github/workflows/windows.yml'
   workflow_dispatch:
 permissions:
   contents: read
